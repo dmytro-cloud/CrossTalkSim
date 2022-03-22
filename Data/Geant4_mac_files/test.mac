@@ -1,0 +1,51 @@
+
+# Sets some default verbose
+
+/control/verbose 1
+/run/verbose 1
+#/run/setCut 0.0001 mm
+/event/verbose 0
+/tracking/verbose 0
+
+# Output file name
+/SiPM/output/filename ../Data/Geant4_output/test.root
+
+# Adding geometery control(s)
+/SiPM/det/Pitch 35.0 um
+/SiPM/det/SiTh 10.0 um
+# Same for generator
+/SiPM/gen/SiTh 10.0 um
+
+/SiPM/det/TrD 3.0 um
+/SiPM/det/AvW 32.0 um
+# Same for generator
+/SiPM/gen/AvWidthGen 32.0 um
+
+/SiPM/det/AvTh 0.01 um
+/SiPM/gen/AvTh 0.01 um
+/SiPM/det/AvD 0.15 um
+/SiPM/gen/AvD 0.15 um
+
+/SiPM/det/SiO2FTh 1.0 um
+/SiPM/det/SiO2BTh 1.0 um
+/SiPM/det/TrBW 1.0 um
+/SiPM/det/TrTW 1.0 um
+/SiPM/det/PolySi true
+
+/run/initialize
+
+# Uncomment for visualization
+#/vis/open HepRepFile
+#/vis/scene/create
+#/vis/scene/add/volume
+#/vis/sceneHandler/attach
+#/vis/scene/add/trajectories
+
+# Store trajectories for tracking
+/tracking/storeTrajectory 1
+
+#original 0.2 keV
+/gun/energy 0.01 keV
+
+/run/beamOn 10000 # 2000 photons with 10 runs, 2 million photons ith 10,000 runs
+
