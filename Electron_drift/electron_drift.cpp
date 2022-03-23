@@ -34,12 +34,14 @@ std::vector<ElectronsCoordinates> GetInitialPositions(size_t num = 10, double av
 void electron_drift() {
 
   // Importning the geometry
-  string line;
+  auto ss = ostringstream{};
   ifstream input_file("../Data/Geometry/Test_data.json");
-  getline(input_file, line);
+  // getline(input_file, line);
+  ss << input_file.rdbuf();
+  
 
   std::map<string, double> *sipmGeomMap = nullptr;
-  TBufferJSON::FromJSON(sipmGeomMap, line.data());
+  TBufferJSON::FromJSON(sipmGeomMap, ss.str().data());
 
   // for (auto& s:*sipmGeomMap) {
   //   // s.second = s.second * 1e3; // From mm to mkm
@@ -57,7 +59,7 @@ void electron_drift() {
 
 
   // Defining a start position
-  std::vector<ElectronsCoordinates> electronsInitialPositions = GetInitialPositions(100000, (*sipmGeomMap)["av_width"]);
+  std::vector<ElectronsCoordinates> electronsInitialPositions = GetInitialPositions((*sipmGeomMap)["number_of_electrons_generated"], (*sipmGeomMap)["av_width"]);
   std::vector<ElectronsCoordinates> electronsFinalPositions;
   electronsFinalPositions.reserve( electronsInitialPositions.size() ); // Actually we can fill ntp right away but just in case store them so far
   size_t counter = 0;
@@ -86,7 +88,15 @@ void electron_drift() {
                          electronsFinalPositions[i].X(), electronsFinalPositions[i].Y(), electronsFinalPositions[i].Z(), electronsFinalPositions[i].T()};
     ntp->Fill(toTuple);
   }
-  TFile* fOutFile = new TFile("../Data/ElectronDriftOutput/100k_point.root","RECREATE");
+
+  std::string outputFilename = "Output.root";
+  if ((*sipmGeomMap)["number_of_electrons_generated"] > 1000){
+    outputFilename = "../Data/ElectronDriftOutput/" + to_string( static_cast<int>((*sipmGeomMap)["number_of_electrons_generated"] / 1000)) + "k_points.root";
+  } else {
+    outputFilename = "../Data/ElectronDriftOutput/" + to_string( static_cast<int>((*sipmGeomMap)["number_of_electrons_generated"] / 1000)) + "_points.root";
+  }
+  TFile *fOutFile = new TFile(outputFilename.data(),"RECREATE");
+  
   // TFile* fOutFile = new TFile("test_fabrice.root","RECREATE");
   // std::cout << "Output filename " << fOutFileName << std::endl;
   ntp->Write();

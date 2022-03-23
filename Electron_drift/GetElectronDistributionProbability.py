@@ -87,6 +87,7 @@ plt.show()
 number_of_electrons = len(data)
 cutted_data = Get_data_after_cuts(data, cells=sipm_params["n_cells"], nbins=sipm_params["n_bins"])
 
+survived_electrons = 0
 json_output = {}
 for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
     for j in range(-(number_of_cells//2), number_of_cells//2 + 1):
@@ -98,6 +99,7 @@ for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
                 if bins_value.empty:
                     json_output[str(i) + ":" + str(j)][str(ii) + ":" + str(jj)] = 0
                 else:
+                    survived_electrons += len(bins_value) / number_of_electrons
                     json_output[str(i) + ":" + str(j)][str(ii) + ":" + str(jj)] = len(bins_value) / number_of_electrons
  
 
@@ -108,29 +110,6 @@ json_string = json.dumps(json_output)
 with open('../Data/Geant4_electrons_input/100k_point_8bins.json', 'w') as outfile:
     outfile.write(json_string)
 
-# Alternative method if load to geant4 for example
-matrix = []
-for i in range(-2, 3):
-    for j in range(2, -3, -1):
-        value = cutted_data[str(i) + ":" + str(j)]
-        for ii in range(0, 3):
-            for jj in range(2, -1, -1):
-                bins_value = value[str(ii) + ":" + str(jj)]
-                if bins_value.empty:
-                    matrix.append(0)
-                else:
-                    matrix.append(len(bins_value) / number_of_electrons)
-
-print(matrix, sum(matrix))
-
-# f = open('../Data/Geant4_electrons_input/100k_test.txt', 'w')
-# output_string = ""
-# for i in range(len(matrix)):
-#     output_string += str(matrix[i]) + '\t'
-#     if (i + 1) % (sipm_params["n_cells"] * sipm_params["n_bins"]) == 0:
-#         output_string += '\n'
-# f.write(output_string)
-# f.close()
-
+print(survived_electrons)
 
 
