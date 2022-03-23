@@ -21,7 +21,12 @@ sipm_params = json.load(file_params)
 file_params.close()
 
 # Load electrons map
-filename_electrons = '../Data/Geant4_electrons_input/100k_point_8bins.json' #sys.argv[2]
+filename_electrons = ""
+if sipm_params["number_of_electrons_generated"] > 1000:
+    filename_electrons = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "k_points.json";
+else:
+    filename_electrons = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "_points.json";
+
 file_electrons = open(filename_electrons)
 electrons_map = json.load(file_electrons)
 file_electrons.close()

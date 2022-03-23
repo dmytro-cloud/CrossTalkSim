@@ -72,10 +72,9 @@ output_string += '''
 # Store trajectories for tracking
 /tracking/storeTrajectory 1
 
-#original 0.2 keV
 /gun/energy 0.01 keV
 
-/run/beamOn 10000 # 2000 photons with 10 runs, 2 million photons ith 10,000 runs
+/run/beamOn 10000 
 
 '''
 

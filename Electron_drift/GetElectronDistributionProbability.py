@@ -57,8 +57,6 @@ def Get_data_after_cuts(data, cells=5, nbins=3):
     return av_data
  
 
-filename = sys.argv[1] # root with electrons information
-
 # Load geometry. Geometry is in mm -> change to mkm
 # Unify units later
 filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
@@ -77,6 +75,13 @@ trench_width = sipm_params['trench_width']
 trench_depth = sipm_params['trench_depth']
 si_thickness = sipm_params['si_thickness']
 number_of_cells = sipm_params['n_cells']
+
+
+filename = "" # root with electrons information
+if sipm_params["number_of_electrons_generated"] > 1000:
+    filename = "../Data/ElectronDriftOutput/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "k_points.root";
+else:
+    filename = "../Data/ElectronDriftOutput/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "_points.root";
 
 file = uproot.open(filename) #"../output/test.root"
 
@@ -107,7 +112,14 @@ for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
 json_string = json.dumps(json_output)
 # print(json_string)
 # Using a JSON string
-with open('../Data/Geant4_electrons_input/100k_point_8bins.json', 'w') as outfile:
+
+outputFilename = ""
+if sipm_params["number_of_electrons_generated"] > 1000:
+    outputFilename = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "k_points.json";
+else:
+    outputFilename = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "_points.json";
+
+with open(outputFilename, 'w') as outfile:
     outfile.write(json_string)
 
 print(survived_electrons)

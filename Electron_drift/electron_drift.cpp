@@ -97,7 +97,7 @@ void electron_drift() {
   }
   TFile *fOutFile = new TFile(outputFilename.data(),"RECREATE");
   
-  // TFile* fOutFile = new TFile("test_fabrice.root","RECREATE");
+  // TFile* fOutFile = new TFile("test.root","RECREATE");
   // std::cout << "Output filename " << fOutFileName << std::endl;
   ntp->Write();
   TObject DtWrite;
