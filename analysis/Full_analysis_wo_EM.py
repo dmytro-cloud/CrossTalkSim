@@ -9,10 +9,16 @@ import pandas as pd
 import json
 import time
 
+# Disable indexing warnings
+pd.options.mode.chained_assignment = None  # default='warn'
+
+
 start = time.time()
 
 # filename = sys.argv[1] # File that you will obtaine probabilities of the crosstalk from and put as initial light (100% prob for appearing)
 # filename_params = sys.argv[2]
+# filename = '../Data/Geant4_output/FBK_8bins_W/FBK_W_binned_4_4.root'
+filename = '../Data/Geant4_output/FBK_8bins_440-1000/FBK_binned_4_4.root'
 
 # Load geometry parameters
 filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
@@ -20,20 +26,9 @@ file_params = open(filename_params)
 sipm_params = json.load(file_params)
 file_params.close()
 
-# Load electrons map
-filename_electrons = ""
-if sipm_params["number_of_electrons_generated"] > 1000:
-    filename_electrons = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "k_points.json";
-else:
-    filename_electrons = "../Data/Geant4_electrons_input/" + str( int(sipm_params["number_of_electrons_generated"] / 1000)) + "_points.json";
-
-file_electrons = open(filename_electrons)
-electrons_map = json.load(file_electrons)
-file_electrons.close()
-
 # To mkm from mm
 for key, value in sipm_params.items():
-    if key == '_typename' or key == 'n_bins' or key == 'n_cells':
+    if key == '_typename' or key == 'n_bins' or key == 'n_cells' or key == 'CS_prob_factor':
         continue
     sipm_params[key] *= 1e-3
 print(sipm_params)
@@ -124,7 +119,8 @@ def Load_and_cut_data(filename, cos_theta = np.sqrt(2) / 2):
     return data_cut
 
 # Shifts the initial data. Make probability cut if needed
-def Shift_xy(data, x_shift=0, y_shift=0, probability=1.):
+# Not safe now (could be out of range) but saves a lot of calcualtion time
+def Shift_xy(data, full_data_length, x_shift=0, y_shift=0, probability=1.):
     tmp = data.copy()
     tmp.second_last_x += x_shift * PitchWidth 
     tmp.photon_last_x += x_shift * PitchWidth 
@@ -136,7 +132,8 @@ def Shift_xy(data, x_shift=0, y_shift=0, probability=1.):
         return tmp[:0]
 
     # Might be better to switch to the actual number to not get confused if the files have different number of events
-    return tmp[:int(len(tmp) // (1. / probability))]
+    return tmp[:int(full_data_length // (1. / probability))]
+    # return tmp[:int(len(tmp) // (1. / probability))]
 
 # file = uproot.open(filename) #"../output/test.root")
 
@@ -146,6 +143,16 @@ def Shift_xy(data, x_shift=0, y_shift=0, probability=1.):
 # electrons_av_data = Get_data_after_cuts(data, False, cells=number_of_cells, binning=number_of_bins)
 # # print(electrons_av_data['0:0'])
 # holes_av_data = Get_data_after_cuts(data, True, cells=number_of_cells, binning=number_of_bins)
+file = uproot.open(filename) #"../output/test.root")
+data = file["ntp"].arrays(["photon_initial_x", "photon_initial_y", "photon_initial_z",
+ "photon_last_x", "photon_last_y", "photon_last_z", "photon_initial_wl"], library='pd')
+print('Data len: ', len(data))
+electrons_av_data = Get_data_after_cuts(data, False, cells=number_of_cells, binning=number_of_bins)
+holes_av_data = Get_data_after_cuts(data, True, cells=number_of_cells, binning=number_of_bins)
+
+# print('Right top:', len(electrons_av_data['1:1']) / len(data))
+# print('Right:', len(electrons_av_data['1:0']) / len(data))
+# print('Left:', len(electrons_av_data['-1:0']) / len(data))
 
 voltages = [2, 3, 4, 5, 6, 7]
 
@@ -164,102 +171,61 @@ numer_of_photons_per_carrier_HPK = 8.71e-6 # photon/e
 photon_num_FBK = gain_FBK * numer_of_photons_per_carrier_FBK
 photon_num_HPK = gain_HPK * numer_of_photons_per_carrier_HPK
 
-# Load binned uniform data
-full_av_data_prob = {}
-for cell_i in range(-(number_of_cells//2), number_of_cells//2 + 1):
-    for cell_j in range(-(number_of_cells//2), number_of_cells//2 + 1):
-        for bin_i in range(number_of_bins):
-            tmp = []
-            for bin_j in range(number_of_bins):
-                electrons_map_key_bin = str(bin_i) + ':' + str(bin_j)
-                electrons_map_key_cell = str(cell_i) + ':' + str(cell_j)
-                # Do not load and calculate everything if probability to appear close to 0
-                if electrons_map[electrons_map_key_cell][electrons_map_key_bin] < 1e-9:
-                    continue
-
-                file = uproot.open('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(bin_i) + '_' + str(bin_j) + '.root') #"../output/test.root")
-                data = file["ntp"].arrays(["photon_initial_x", "photon_initial_y", "photon_initial_z", "second_last_x", "second_last_y", "second_last_z",
-                 "photon_last_x", "photon_last_y", "photon_last_z"], library='pd')
-
-                tmp_electrons_av_data = Get_data_after_cuts(Shift_xy(data, cell_i, cell_j), False, cells=number_of_cells, binning=number_of_bins)
-                tmp_holes_av_data = Get_data_after_cuts(Shift_xy(data, cell_i, cell_j), True, cells=number_of_cells, binning=number_of_bins)
-
-                print(electrons_map_key_cell, electrons_map_key_bin)
-                # Calculate probabilities
-                for key, item in tmp_electrons_av_data.items():
-                    if key not in full_av_data_prob:
-                        full_av_data_prob[key] = {}
-                    for key2, _ in item.items():
-                        # low CS rate for initial cell
-                        # With the shift need to adjust this coordinate to the initial cell of the electron
-                        if key == electrons_map_key_cell:
-                            if key2 not in full_av_data_prob[key]:
-                                full_av_data_prob[key][key2] = electrons_map[electrons_map_key_cell][electrons_map_key_bin] * 0.001 * (1 - np.power(1 - (len(tmp_electrons_av_data[key][key2]) * 0.99 + len(tmp_holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
-                            else:
-                                full_av_data_prob[key][key2] += electrons_map[electrons_map_key_cell][electrons_map_key_bin] * 0.001 * (1 - np.power(1 - (len(tmp_electrons_av_data[key][key2]) * 0.99 + len(tmp_holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
-                        else:
-                            if key2 not in full_av_data_prob[key]:
-                                full_av_data_prob[key][key2] = electrons_map[electrons_map_key_cell][electrons_map_key_bin] * ( 1 - np.power(1 - (len(tmp_electrons_av_data[key][key2]) * 0.99 + len(tmp_holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
-                            else:
-                                full_av_data_prob[key][key2] += electrons_map[electrons_map_key_cell][electrons_map_key_bin] * ( 1 - np.power(1 - (len(tmp_electrons_av_data[key][key2]) * 0.99 + len(tmp_holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
-
-
-CS_probability = 0
-for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
-    for j in range(-(number_of_cells//2), number_of_cells//2 + 1):
-        for ii in range(number_of_bins):
-            for jj in range(number_of_bins):
-                CS_probability += full_av_data_prob[str(i) + ':' + str(j)][str(ii) + ':' + str(jj)]
-
-weights = []
-x = []
-y = []
-for ii in range(8):
-    for jj in range(8):
-        weights.append(full_av_data_prob['0:0'][str(ii) + ':' + str(jj)])
-        x.append(ii)
-        y.append(jj)
-
-plt.hist2d(x, y, weights=weights, bins=8)
-plt.savefig('CS_probability.png')
-# plt.show()
-
-# Multiply by survived nu,mber of electrons
-# Doesnt matter for image since we dont have absolute measurements
-print("CS probability: ", CS_probability * sipm_params['Electrons_survived'])
 end = time.time()
 print('Time to calculate CS prob: ', end - start)
+
+final_ct_prob = 0
+
 #### IMAGE CALCULATIONS ### 
+print(photon_num_FBK[-1])
 # As an example for 7V overvoltage
+full_av_data_prob = {}
+# print(electrons_av_data)
+for key, item in electrons_av_data.items():
+    full_av_data_prob[key] = {}
+    for key2, _ in item.items():
+        # low CS rate for initial cell
+        CS_prob_factor = sipm_params["CS_prob_factor"]
+        if key == '0:0':
+            full_av_data_prob[key][key2] = CS_prob_factor * 0.01 * (1 - np.power(1 - (len(electrons_av_data[key][key2]) * 0.99 + len(holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
+        else:
+            full_av_data_prob[key][key2] = CS_prob_factor * (1 - np.power(1 - (len(electrons_av_data[key][key2]) * 0.99 + len(holes_av_data[key][key2]) * 0.19) / len(data), photon_num_FBK[-1]))
+            final_ct_prob += full_av_data_prob[key][key2]
 
-# Convolution with nearby cells probability
-res = []
-for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
-    for j in range(-(number_of_cells//2), number_of_cells//2 + 1):
-        for ii in range(number_of_bins):
-            for jj in range(number_of_bins):
-                if electrons_map[str(i) + ':' + str(j)][str(ii) + ':' + str(jj)] < 1e-9:
-                    res.append(pd.DataFrame())
-                    continue
-                # arcsin(0.45)
-                data_tmp = Load_and_cut_data('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(ii) + '_' + str(jj) + '.root', cos_theta=np.sqrt(1 - 0.45**2))
-                # Taking into account electron data
-                res.append(Shift_xy(data_tmp, i, j, electrons_map[str(i) + ':' + str(j)][str(ii) + ':' + str(jj)]))
-
+print('CROSS TALK PROBABILITY ', final_ct_prob)
 # Load binned uniform data
 uniform_binned_data = []
 for i in range(number_of_bins):
     tmp = []
     for j in range(number_of_bins):
-        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
+        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_8bins_440-1000/FBK_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
     uniform_binned_data.append(tmp)
+
+
+res = [Load_and_cut_data(filename)] # [uniform_binned_data[0][2]]
+print('Number of escaped photons from initial avalanche: ', len(res[0]))
+bins_wl_em, edges, _ = plt.hist(res[0].photon_initial_wl, range=(400, 1000), bins=100)
+bins_wl_in, edges, _ = plt.hist(data.photon_initial_wl, range=(400, 1000), bins=100)
+plt.show()
+emission_frac = bins_wl_em / bins_wl_in
+plt.hist((edges[1:] + edges[:-1]) / 2, weights=emission_frac, range=(400, 1000), bins=100)
+plt.show()
+
+plt.hist2d(res[0].second_last_x, res[0].second_last_y, norm=mpl.colors.LogNorm(), bins=200, range=((-0.15, 0.15), (-0.15, 0.15)))
+plt.colorbar()
+plt.title('The whole board before CS injected')
+plt.xlabel('X, [mm]')
+plt.ylabel('Y, [mm]')
+# plt.savefig('100k_point_8bins.png')
+plt.show()
+
 
 #I have to generate data for every of the n cells and use it.
 for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
     for j in range(-(number_of_cells//2), number_of_cells//2 + 1):
         for ii in range(number_of_bins):
             for jj in range(number_of_bins):
-                res.append(Shift_xy(uniform_binned_data[ii][jj], i, j, full_av_data_prob[str(i) + ':' + str(j)][str(ii) + ':' + str(jj)]))
+                res.append(Shift_xy(uniform_binned_data[ii][jj], len(res[0]), i, j, full_av_data_prob[str(i) + ':' + str(j)][str(ii) + ':' + str(jj)]))
 
 print(full_av_data_prob['0:0'])
 
@@ -267,12 +233,20 @@ print(full_av_data_prob['0:0'])
 # res.append(Shift_xy(data_cut_uniform, 0, 0, 0.01))
 
 res = pd.concat(res)
+print('Number of escaped photons: ', len(res))
+bins_wl_em, edges, _ = plt.hist(res.photon_initial_wl, range=(400, 1000), bins=100)
+bins_wl_in, edges, _ = plt.hist(data.photon_initial_wl, range=(400, 1000), bins=100)
+plt.show()
+emission_frac = bins_wl_em / bins_wl_in
+plt.hist((edges[1:] + edges[:-1]) / 2, weights=emission_frac, range=(400, 1000), bins=100)
+plt.show()
+
 plt.hist2d(res.second_last_x, res.second_last_y, norm=mpl.colors.LogNorm(), bins=200, range=((-0.15, 0.15), (-0.15, 0.15)))
 plt.colorbar()
 plt.title('The whole board')
 plt.xlabel('X, [mm]')
 plt.ylabel('Y, [mm]')
-plt.savefig('100k_point_8bins.png')
+# plt.savefig('100k_point_8bins.png')
 plt.show()
 
 

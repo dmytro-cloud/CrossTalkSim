@@ -2,4 +2,4 @@
 "trench_depth": 3.0, "si_thickness": 300.0, "avalanche_thickness":0.01, "avalanche_depth":0.15,
 "si_o_front_thickness":1.0, "si_o_back_thickness":1.0, "polysi_for_trenches":1, "d_star":0.005,
 "electron_width":0.145, "w_star":2.2, "electrons_drift_depth":7, "n_bins":8, "n_cells":5,
- "number_of_electrons_generated":23000}
+ "number_of_electrons_generated":23000, "CS_prob_factor":5}

@@ -106,8 +106,15 @@ for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
                 else:
                     survived_electrons += len(bins_value) / number_of_electrons
                     json_output[str(i) + ":" + str(j)][str(ii) + ":" + str(jj)] = len(bins_value) / number_of_electrons
- 
 
+# Loops to normalize the data
+for i in range(-(number_of_cells//2), number_of_cells//2 + 1):
+    for j in range(-(number_of_cells//2), number_of_cells//2 + 1):
+        for ii in range(sipm_params["n_bins"]):
+            for jj in range(sipm_params["n_bins"]):
+                json_output[str(i) + ":" + str(j)][str(ii) + ":" + str(jj)] = json_output[str(i) + ":" + str(j)][str(ii) + ":" + str(jj)] / survived_electrons
+
+json_output["Electrons_survived"] = survived_electrons
 # print(json_output)
 json_string = json.dumps(json_output)
 # print(json_string)
