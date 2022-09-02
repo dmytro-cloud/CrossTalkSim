@@ -8,7 +8,7 @@ import sys
 import pandas as pd
 import json
 
-filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
+filename_params = '../Data/Geometry/Backside_tungsten.json' #sys.argv[2]
 file_params = open(filename_params)
 sipm_params = json.load(file_params)
 file_params.close()
@@ -78,7 +78,7 @@ output_string += '''
 
 '''
 
-f = open('../Data/Geant4_mac_files/test.mac', 'w')
+f = open('../Data/Geant4_mac_files/Backside_tungsten.mac', 'w')
 f.write(output_string)
 f.close()
 # print(output_string)

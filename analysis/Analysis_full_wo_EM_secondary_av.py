@@ -13,10 +13,10 @@ start = time.time()
 
 # filename = sys.argv[1] # File that you will obtaine probabilities of the crosstalk from and put as initial light (100% prob for appearing)
 # filename_params = sys.argv[2]
-filename = '../Data/Geant4_output/FBK_8bins/FBK_binned_4_4.root'
+filename = '../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_2_2.root'
 
 # Load geometry parameters
-filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
+filename_params = '../Data/Geometry/Backside_tungsten.json' #sys.argv[2]
 file_params = open(filename_params)
 sipm_params = json.load(file_params)
 file_params.close()
@@ -198,7 +198,7 @@ for cell_i in range(-(number_of_cells//2), number_of_cells//2 + 1):
                 if full_av_data_prob[electrons_map_key_cell][electrons_map_key_bin] < 1e-9:
                     continue
 
-                file = uproot.open('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(bin_i) + '_' + str(bin_j) + '.root') #"../output/test.root")
+                file = uproot.open('../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_' + str(bin_i) + '_' + str(bin_j) + '.root') #"../output/test.root")
                 data = file["ntp"].arrays(["second_last_x", "second_last_y", "second_last_z",
                  "photon_last_x", "photon_last_y", "photon_last_z", "photon_initial_wl"], library='pd')
 
@@ -236,7 +236,7 @@ uniform_binned_data = []
 for i in range(number_of_bins):
     tmp = []
     for j in range(number_of_bins):
-        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
+        tmp.append(Load_and_cut_data('../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
     uniform_binned_data.append(tmp)
 
 

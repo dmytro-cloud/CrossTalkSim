@@ -17,11 +17,12 @@ start = time.time()
 
 # filename = sys.argv[1] # File that you will obtaine probabilities of the crosstalk from and put as initial light (100% prob for appearing)
 # filename_params = sys.argv[2]
-# filename = '../Data/Geant4_output/FBK_8bins_W/FBK_W_binned_4_4.root'
-filename = '../Data/Geant4_output/FBK_8bins_440-1000/FBK_binned_4_4.root'
+filename = '../Data/Geant4_output/FBK_4bins/FBK_rectangle_2_2.root'
+# filename = '../Data/Geant4_output/Backside_4bins_Si/Backside_polysi_binned_2_2.root'
 
 # Load geometry parameters
 filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
+# filename_params = '../Data/Geometry/Backside_tungsten.json' #sys.argv[2]
 file_params = open(filename_params)
 sipm_params = json.load(file_params)
 file_params.close()
@@ -52,28 +53,76 @@ def Apply_cut(data, x_boundaries, y_boundaries, z_boundaries):
     cut_z = ((data['photon_last_z'] < z_boundaries[1]) & (data['photon_last_z'] > z_boundaries[0]))
     return data[cut_x & cut_y & cut_z]
 
+# def Get_data_little_cuts(data, x_cut, y_cut, z_cut, binning=3):
+#     cell_data = {}
+#     for ii in range(binning):
+#         for jj in range(binning):
+#             small_l_cut = x_cut[0] + ii * PitchWidth / binning
+#             small_r_cut = x_cut[0] + (ii + 1) * PitchWidth / binning
+#             small_b_cut = y_cut[0] + jj * PitchWidth / binning
+#             small_t_cut = y_cut[0] + (jj + 1) * PitchWidth / binning
+#             cell_data[str(ii) + ':' + str(jj)] = Apply_cut(data, (small_l_cut, small_r_cut), (small_b_cut, small_t_cut), z_cut)
+#     return cell_data
+
+# Modifiy with the avalanche width
+
 def Get_data_little_cuts(data, x_cut, y_cut, z_cut, binning=3):
     cell_data = {}
     for ii in range(binning):
         for jj in range(binning):
-            small_l_cut = x_cut[0] + ii * PitchWidth / binning
-            small_r_cut = x_cut[0] + (ii + 1) * PitchWidth / binning
-            small_b_cut = y_cut[0] + jj * PitchWidth / binning
-            small_t_cut = y_cut[0] + (jj + 1) * PitchWidth / binning
+            small_l_cut = x_cut[0] + ii * AvWidth / binning
+            small_r_cut = x_cut[0] + (ii + 1) * AvWidth / binning
+            # plt.vlines(small_l_cut, -0.032, 0.032)
+            # plt.vlines(small_r_cut, -0.032, 0.032)
+            small_b_cut = y_cut[0] + jj * AvWidth / binning
+            small_t_cut = y_cut[0] + (jj + 1) * AvWidth / binning
+            # plt.hlines(small_b_cut, -0.032, 0.032)
+            # plt.hlines(small_t_cut, -0.032, 0.032)
+            # plt.show()
             cell_data[str(ii) + ':' + str(jj)] = Apply_cut(data, (small_l_cut, small_r_cut), (small_b_cut, small_t_cut), z_cut)
     return cell_data
 
-# Sounds super silly but it works only for odd numbers so far
+# It works only for odd numbers so far
+# def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
+#     cells_region = cells // 2 + 1
+#     av_data = {}
+#     # Av region count
+#     for x_i in range(cells_region):
+#         for y_j in range(cells_region):             
+#             left_cut = PitchWidth/2 + trench_width/2 + (x_i-1) * PitchWidth
+#             right_cut = PitchWidth/2 + x_i * PitchWidth - trench_width / 2
+#             bottom_cut = PitchWidth/2 + trench_width/2 + (y_j - 1) * PitchWidth
+#             top_cut = PitchWidth/2 + y_j * PitchWidth - trench_width / 2
+#             z_bottom_cut = -si_thickness / 2 + d_star
+#             z_top_cut =  -si_thickness / 2 + d_star + electron_width
+
+#             if holes_av_region:
+#                 z_top_cut = -si_thickness / 2 + d_star + electron_width + holes_width
+#                 z_bottom_cut = -si_thickness / 2 + d_star + electron_width
+
+#             if x_i == 0 and y_j == 0:
+#                 left_cut = - PitchWidth/2
+#                 bottom_cut = - PitchWidth/2
+#                 right_cut = top_cut = PitchWidth/2
+
+#             av_data[str(x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(-x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(-x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#     return av_data
+
+# It works only for odd numbers so far
+# Try to make proper cuts only for avalanche region itself
 def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
     cells_region = cells // 2 + 1
     av_data = {}
     # Av region count
     for x_i in range(cells_region):
         for y_j in range(cells_region):             
-            left_cut = PitchWidth/2 + trench_width/2 + (x_i-1) * PitchWidth
-            right_cut = PitchWidth/2 + x_i * PitchWidth - trench_width / 2
-            bottom_cut = PitchWidth/2 + trench_width/2 + (y_j - 1) * PitchWidth
-            top_cut = PitchWidth/2 + y_j * PitchWidth - trench_width / 2
+            left_cut = -AvWidth/2 + x_i * PitchWidth
+            right_cut = AvWidth/2 + x_i * PitchWidth
+            bottom_cut = -AvWidth/2 + y_j * PitchWidth
+            top_cut = AvWidth/2 + y_j * PitchWidth
             z_bottom_cut = -si_thickness / 2 + d_star
             z_top_cut =  -si_thickness / 2 + d_star + electron_width
 
@@ -81,10 +130,6 @@ def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
                 z_top_cut = -si_thickness / 2 + d_star + electron_width + holes_width
                 z_bottom_cut = -si_thickness / 2 + d_star + electron_width
 
-            if x_i == 0 and y_j == 0:
-                left_cut = - PitchWidth/2
-                bottom_cut = - PitchWidth/2
-                right_cut = top_cut = PitchWidth/2
 
             av_data[str(x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
             av_data[str(-x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
@@ -100,7 +145,7 @@ def Load_and_cut_data(filename, cos_theta = np.sqrt(2) / 2):
     file = uproot.open(filename) #"../output/test.root")
     data = file["ntp"].arrays(["second_last_x", "second_last_y", "second_last_z",
      "photon_last_x", "photon_last_y", "photon_last_z", "photon_initial_wl"], library='pd')
-    cut = data["photon_last_z"] < - si_thickness / 2 - 0.01
+    cut = data["photon_last_z"] < - si_thickness / 2 - 0.001
     data_cut = data[cut]
     
     # Find the direction of the selected events and make a cut on theta angle
@@ -171,6 +216,8 @@ numer_of_photons_per_carrier_HPK = 8.71e-6 # photon/e
 photon_num_FBK = gain_FBK * numer_of_photons_per_carrier_FBK
 photon_num_HPK = gain_HPK * numer_of_photons_per_carrier_HPK
 
+print(gain_FBK, photon_num_FBK)
+
 end = time.time()
 print('Time to calculate CS prob: ', end - start)
 
@@ -198,7 +245,7 @@ uniform_binned_data = []
 for i in range(number_of_bins):
     tmp = []
     for j in range(number_of_bins):
-        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_8bins_440-1000/FBK_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
+        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_4bins/FBK_rectangle_' + str(i) + '_' + str(j) + '.root',   cos_theta=np.sqrt(1 - 0.45**2)))
     uniform_binned_data.append(tmp)
 
 
@@ -209,6 +256,8 @@ bins_wl_in, edges, _ = plt.hist(data.photon_initial_wl, range=(400, 1000), bins=
 plt.show()
 emission_frac = bins_wl_em / bins_wl_in
 plt.hist((edges[1:] + edges[:-1]) / 2, weights=emission_frac, range=(400, 1000), bins=100)
+plt.xlabel('Wavelength [nm]')
+plt.ylabel('Fraction')
 plt.show()
 
 plt.hist2d(res[0].second_last_x, res[0].second_last_y, norm=mpl.colors.LogNorm(), bins=200, range=((-0.15, 0.15), (-0.15, 0.15)))
@@ -239,9 +288,11 @@ bins_wl_in, edges, _ = plt.hist(data.photon_initial_wl, range=(400, 1000), bins=
 plt.show()
 emission_frac = bins_wl_em / bins_wl_in
 plt.hist((edges[1:] + edges[:-1]) / 2, weights=emission_frac, range=(400, 1000), bins=100)
+plt.xlabel('Wavelength [nm]')
+plt.ylabel('Fraction')
 plt.show()
 
-plt.hist2d(res.second_last_x, res.second_last_y, norm=mpl.colors.LogNorm(), bins=200, range=((-0.15, 0.15), (-0.15, 0.15)))
+plt.hist2d(res.second_last_x, res.second_last_y, norm=mpl.colors.LogNorm(), bins=200, range=((-0.3, 0.3), (-0.3, 0.3)))
 plt.colorbar()
 plt.title('The whole board')
 plt.xlabel('X, [mm]')
