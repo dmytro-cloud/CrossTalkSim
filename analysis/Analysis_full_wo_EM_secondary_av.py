@@ -13,10 +13,11 @@ start = time.time()
 
 # filename = sys.argv[1] # File that you will obtaine probabilities of the crosstalk from and put as initial light (100% prob for appearing)
 # filename_params = sys.argv[2]
-filename = '../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_2_2.root'
+filename = '../Data/Geant4_output/FBK_8bins/FBK_binned_3_4.root'
 
 # Load geometry parameters
-filename_params = '../Data/Geometry/Backside_tungsten.json' #sys.argv[2]
+# filename_params = '../Data/Geometry/Backside_tungsten.json' #sys.argv[2]
+filename_params = '../Data/Geometry/Test_data.json' #sys.argv[2]
 file_params = open(filename_params)
 sipm_params = json.load(file_params)
 file_params.close()
@@ -58,17 +59,18 @@ def Get_data_little_cuts(data, x_cut, y_cut, z_cut, binning=3):
             cell_data[str(ii) + ':' + str(jj)] = Apply_cut(data, (small_l_cut, small_r_cut), (small_b_cut, small_t_cut), z_cut)
     return cell_data
 
-# Sounds super silly but it works only for odd numbers so far
+# It works only for odd numbers so far
+# Try to make proper cuts only for avalanche region itself
 def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
     cells_region = cells // 2 + 1
     av_data = {}
     # Av region count
     for x_i in range(cells_region):
         for y_j in range(cells_region):             
-            left_cut = PitchWidth/2 + trench_width/2 + (x_i-1) * PitchWidth
-            right_cut = PitchWidth/2 + x_i * PitchWidth - trench_width / 2
-            bottom_cut = PitchWidth/2 + trench_width/2 + (y_j - 1) * PitchWidth
-            top_cut = PitchWidth/2 + y_j * PitchWidth - trench_width / 2
+            left_cut = -AvWidth/2 + x_i * PitchWidth
+            right_cut = AvWidth/2 + x_i * PitchWidth
+            bottom_cut = -AvWidth/2 + y_j * PitchWidth
+            top_cut = AvWidth/2 + y_j * PitchWidth
             z_bottom_cut = -si_thickness / 2 + d_star
             z_top_cut =  -si_thickness / 2 + d_star + electron_width
 
@@ -76,16 +78,41 @@ def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
                 z_top_cut = -si_thickness / 2 + d_star + electron_width + holes_width
                 z_bottom_cut = -si_thickness / 2 + d_star + electron_width
 
-            if x_i == 0 and y_j == 0:
-                left_cut = - PitchWidth/2
-                bottom_cut = - PitchWidth/2
-                right_cut = top_cut = PitchWidth/2
 
             av_data[str(x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
             av_data[str(-x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
             av_data[str(-x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
             av_data[str(x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
     return av_data
+
+# Sounds super silly but it works only for odd numbers so far
+# def Get_data_after_cuts(data, holes_av_region, cells=5, binning=3):
+#     cells_region = cells // 2 + 1
+#     av_data = {}
+#     # Av region count
+#     for x_i in range(cells_region):
+#         for y_j in range(cells_region):             
+#             left_cut = PitchWidth/2 + trench_width/2 + (x_i-1) * PitchWidth
+#             right_cut = PitchWidth/2 + x_i * PitchWidth - trench_width / 2
+#             bottom_cut = PitchWidth/2 + trench_width/2 + (y_j - 1) * PitchWidth
+#             top_cut = PitchWidth/2 + y_j * PitchWidth - trench_width / 2
+#             z_bottom_cut = -si_thickness / 2 + d_star
+#             z_top_cut =  -si_thickness / 2 + d_star + electron_width
+
+#             if holes_av_region:
+#                 z_top_cut = -si_thickness / 2 + d_star + electron_width + holes_width
+#                 z_bottom_cut = -si_thickness / 2 + d_star + electron_width
+
+#             if x_i == 0 and y_j == 0:
+#                 left_cut = - PitchWidth/2
+#                 bottom_cut = - PitchWidth/2
+#                 right_cut = top_cut = PitchWidth/2
+
+#             av_data[str(x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(-x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(-x_i) + ':' + str(y_j)] = Get_data_little_cuts(data, (-right_cut, -left_cut), (bottom_cut, top_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#             av_data[str(x_i) + ':' + str(-y_j)] = Get_data_little_cuts(data, (left_cut, right_cut), (-top_cut, -bottom_cut), (z_bottom_cut, z_top_cut), binning=binning)
+#     return av_data
 
 # def Get_small_cell_data(data, )
 
@@ -198,7 +225,7 @@ for cell_i in range(-(number_of_cells//2), number_of_cells//2 + 1):
                 if full_av_data_prob[electrons_map_key_cell][electrons_map_key_bin] < 1e-9:
                     continue
 
-                file = uproot.open('../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_' + str(bin_i) + '_' + str(bin_j) + '.root') #"../output/test.root")
+                file = uproot.open('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(bin_i) + '_' + str(bin_j) + '.root') #"../output/test.root")
                 data = file["ntp"].arrays(["second_last_x", "second_last_y", "second_last_z",
                  "photon_last_x", "photon_last_y", "photon_last_z", "photon_initial_wl"], library='pd')
 
@@ -236,7 +263,7 @@ uniform_binned_data = []
 for i in range(number_of_bins):
     tmp = []
     for j in range(number_of_bins):
-        tmp.append(Load_and_cut_data('../Data/Geant4_output/Backside_4bins_W/Backside_W_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
+        tmp.append(Load_and_cut_data('../Data/Geant4_output/FBK_8bins/FBK_binned_' + str(i) + '_' + str(j) + '.root', cos_theta=np.sqrt(1 - 0.45**2)))
     uniform_binned_data.append(tmp)
 
 
@@ -286,7 +313,7 @@ plt.colorbar()
 plt.title('The whole board')
 plt.xlabel('X, [mm]')
 plt.ylabel('Y, [mm]')
-# plt.savefig('100k_point_8bins.png')
+plt.savefig('8bins_corrected.png')
 plt.show()
 
 
